@@ -182,20 +182,20 @@ SDK: `github.com/oceanengine/ad_open_sdk_go@v1.1.83`
 | 编号 | SDK方法 | 说明 | 状态 |
 |------|---------|------|------|
 | 09-001 | CampaignCreateV2Api | 创建广告组 | [ ] |
-| 09-002 | CampaignGetV2Api | 查询广告组 | [ ] |
+| 09-002 | CampaignGetV2Api | 查询广告组 | [x] |
 | 09-003 | CampaignUpdateV2Api | 更新广告组 | [ ] |
-| 09-004 | CampaignUpdateStatusV2Api | 更新广告组状态 | [ ] |
+| 09-004 | CampaignUpdateStatusV2Api | 更新广告组状态 | [x] |
 
 ## 10. 广告计划 Ad (v2)
 
 | 编号 | SDK方法 | 说明 | 状态 |
 |------|---------|------|------|
-| 10-001 | AdGetV2Api | 查询广告计划 | [ ] |
-| 10-002 | AdUpdateBidV2Api | 更新出价 | [ ] |
-| 10-003 | AdUpdateBudgetV2Api | 更新预算 | [ ] |
+| 10-001 | AdGetV2Api | 查询广告计划 | [x] |
+| 10-002 | AdUpdateBidV2Api | 更新出价 | [x] |
+| 10-003 | AdUpdateBudgetV2Api | 更新预算 | [x] |
 | 10-004 | AdUdUpdateV2Api | 更新UD | [ ] |
-| 10-005 | AdRejectReasonV2Api | 审核拒绝原因 | [ ] |
-| 10-006 | AdCostProtectStatusGetV2Api | 成本保护状态 | [ ] |
+| 10-005 | AdRejectReasonV2Api | 审核拒绝原因 | [x] |
+| 10-006 | AdCostProtectStatusGetV2Api | 成本保护状态 | [x] |
 | 10-007 | AdBillingUniqueIdGetV30Api | 计费唯一ID | [ ] |
 | 10-008 | AdShopInfoUpdateV30Api | 更新店铺信息 | [ ] |
 | 10-009 | AdConvertSignalV2Api | 转化信号 | [ ] |
@@ -206,37 +206,37 @@ SDK: `github.com/oceanengine/ad_open_sdk_go@v1.1.83`
 | 编号 | SDK方法 | 说明 | 状态 |
 |------|---------|------|------|
 | 11-001 | ProjectCreateV30Api | 创建项目 | [ ] |
-| 11-002 | ProjectListV30Api | 项目列表 | [ ] |
+| 11-002 | ProjectListV30Api | 项目列表 | [x] |
 | 11-003 | ProjectUpdateV30Api | 更新项目 | [ ] |
-| 11-004 | ProjectDeleteV30Api | 删除项目 | [ ] |
-| 11-005 | ProjectStatusUpdateV30Api | 更新状态 | [ ] |
-| 11-006 | ProjectBudgetUpdateV30Api | 更新预算 | [ ] |
+| 11-004 | ProjectDeleteV30Api | 删除项目 | [x] |
+| 11-005 | ProjectStatusUpdateV30Api | 更新状态 | [x] |
+| 11-006 | ProjectBudgetUpdateV30Api | 更新预算 | [x] |
 | 11-007 | ProjectCpaBidUpdateV30Api | 更新CPA出价 | [ ] |
 | 11-008 | ProjectDeepCpaBidUpdateV30Api | 更新深度CPA出价 | [ ] |
 | 11-009 | ProjectRoigoalUpdateV30Api | 更新ROI目标 | [ ] |
 | 11-010 | ProjectNameUpdateV30Api | 更新名称 | [ ] |
 | 11-011 | ProjectScheduleTimeUpdateV30Api | 更新排期 | [ ] |
 | 11-012 | ProjectWeekScheduleUpdateV30Api | 更新周排期 | [ ] |
-| 11-013 | ProjectCostProtectStatusGetV30Api | 成本保护状态 | [ ] |
+| 11-013 | ProjectCostProtectStatusGetV30Api | 成本保护状态 | [x] |
 
 ## 12. 广告单元 Promotion (v3)
 
 | 编号 | SDK方法 | 说明 | 状态 |
 |------|---------|------|------|
 | 12-001 | PromotionCreateV30Api | 创建单元 | [ ] |
-| 12-002 | PromotionListV30Api | 单元列表 | [ ] |
+| 12-002 | PromotionListV30Api | 单元列表 | [x] |
 | 12-003 | PromotionUpdateV30Api | 更新单元 | [ ] |
-| 12-004 | PromotionDeleteV30Api | 删除单元 | [ ] |
-| 12-005 | PromotionStatusUpdateV30Api | 更新状态 | [ ] |
-| 12-006 | PromotionBidUpdateV30Api | 更新出价 | [ ] |
-| 12-007 | PromotionBudgetUpdateV30Api | 更新预算 | [ ] |
+| 12-004 | PromotionDeleteV30Api | 删除单元 | [x] |
+| 12-005 | PromotionStatusUpdateV30Api | 更新状态 | [x] |
+| 12-006 | PromotionBidUpdateV30Api | 更新出价 | [x] |
+| 12-007 | PromotionBudgetUpdateV30Api | 更新预算 | [x] |
 | 12-008 | PromotionDeepbidUpdateV30Api | 更新深度出价 | [ ] |
 | 12-009 | PromotionNameUpdateV30Api | 更新名称 | [ ] |
 | 12-010 | PromotionScheduleTimeUpdateV30Api | 更新排期 | [ ] |
 | 12-011 | PromotionShopInfoUpdateV30Api | 更新店铺信息 | [ ] |
 | 12-012 | PromotionMaterialDeleteV30Api | 删除素材 | [ ] |
-| 12-013 | PromotionRejectReasonGetV30Api | 审核拒绝原因 | [ ] |
-| 12-014 | PromotionCostProtectStatusGetV30Api | 成本保护状态 | [ ] |
+| 12-013 | PromotionRejectReasonGetV30Api | 审核拒绝原因 | [x] |
+| 12-014 | PromotionCostProtectStatusGetV30Api | 成本保护状态 | [x] |
 | 12-015 | PromotionAidGetV30Api | AID查询 | [ ] |
 | 12-016 | PromotionAutoGenerateConfigCreateV30Api | 自动生成配置 | [ ] |
 | 12-017 | PromotionAutoGenerateConfigGetV30Api | 查询自动生成配置 | [ ] |
@@ -282,13 +282,13 @@ SDK: `github.com/oceanengine/ad_open_sdk_go@v1.1.83`
 
 | 编号 | SDK方法 | 说明 | 状态 |
 |------|---------|------|------|
-| 16-001 | CreativeGetV2Api | 查询创意 | [ ] |
-| 16-002 | CreativeDetailGetV30Api | 创意详情 | [ ] |
+| 16-001 | CreativeGetV2Api | 查询创意 | [x] |
+| 16-002 | CreativeDetailGetV30Api | 创意详情 | [x] |
 | 16-003 | CreativeCustomCreativeCreateV2Api | 创建自定义创意 | [ ] |
 | 16-004 | CreativeCustomCreativeUpdateV2Api | 更新自定义创意 | [ ] |
 | 16-005 | CreativeProceduralCreativeCreateV2Api | 创建程序化创意 | [ ] |
 | 16-006 | CreativeProceduralCreativeUpdateV2Api | 更新程序化创意 | [ ] |
-| 16-007 | CreativeRejectReasonV2Api | 创意审核拒绝原因 | [ ] |
+| 16-007 | CreativeRejectReasonV2Api | 创意审核拒绝原因 | [x] |
 | 16-008 | CreativeStrategyListV2Api | 创意策略列表 | [ ] |
 | 16-009 | AssetsCreativeComponentCreateV2Api | 创建创意组件 | [ ] |
 | 16-010 | AssetsCreativeComponentGetV2Api | 查询创意组件 | [ ] |
