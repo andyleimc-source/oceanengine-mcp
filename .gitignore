@@ -1,3 +1,22 @@
+# 凭证与敏感信息
 .env
+.env.*
 token.json
+*.secret
+
+# 构建产物
 ocean
+ocean-*
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# 临时文件
+PLAN.md
