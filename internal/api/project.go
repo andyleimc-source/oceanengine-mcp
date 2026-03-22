@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
+	"strings"
 
 	ad_open_sdk_go "github.com/oceanengine/ad_open_sdk_go"
 	"github.com/oceanengine/ad_open_sdk_go/models"
@@ -11,7 +11,7 @@ import (
 
 // ListProjects queries projects (v3).
 // API: 11-002 ProjectListV30Api
-func ListProjects(c *ad_open_sdk_go.Client, accessToken string, advID int64) {
+func ListProjects(c *ad_open_sdk_go.Client, accessToken string, advID int64) (string, error) {
 	ctx := context.Background()
 	fields := []string{
 		"project_id", "name", "status", "status_first",
@@ -27,36 +27,39 @@ func ListProjects(c *ad_open_sdk_go.Client, accessToken string, advID int64) {
 		PageSize(100).
 		Execute()
 	if err != nil {
-		log.Fatalf("查询项目列表失败: %v", err)
+		return "", fmt.Errorf("查询项目列表失败: %w", err)
 	}
-	checkResp("查询项目列表", resp.Code, resp.Message)
+	if err := CheckResp("查询项目列表", resp.Code, resp.Message); err != nil {
+		return "", err
+	}
 
+	var b strings.Builder
 	if resp.Data == nil || len(resp.Data.List) == 0 {
-		fmt.Println("暂无项目数据")
-		return
+		b.WriteString("暂无项目数据\n")
+		return b.String(), nil
 	}
 
-	fmt.Println("=== 项目列表 (v3) ===")
-	fmt.Println()
+	b.WriteString("=== 项目列表 (v3) ===\n\n")
 	for i, item := range resp.Data.List {
-		fmt.Printf("#%d\n", i+1)
-		printField("项目ID", item.ProjectId)
-		printField("名称", item.Name)
-		printField("状态", item.Status)
-		printField("一级状态", item.StatusFirst)
-		printField("推广目的", item.LandingType)
-		printField("营销目标", item.MarketingGoal)
-		printField("投放类型", item.AdType)
-		printField("投放模式", item.DeliveryMode)
-		printField("创建时间", item.ProjectCreateTime)
-		fmt.Println("  ----------")
+		fmt.Fprintf(&b, "#%d\n", i+1)
+		writeField(&b, "项目ID", item.ProjectId)
+		writeField(&b, "名称", item.Name)
+		writeField(&b, "状态", item.Status)
+		writeField(&b, "一级状态", item.StatusFirst)
+		writeField(&b, "推广目的", item.LandingType)
+		writeField(&b, "营销目标", item.MarketingGoal)
+		writeField(&b, "投放类型", item.AdType)
+		writeField(&b, "投放模式", item.DeliveryMode)
+		writeField(&b, "创建时间", item.ProjectCreateTime)
+		b.WriteString("  ----------\n")
 	}
-	printPageInfo(resp.Data.PageInfo)
+	writePageInfo(&b, resp.Data.PageInfo)
+	return b.String(), nil
 }
 
 // UpdateProjectStatus updates project status (v3).
 // API: 11-005 ProjectStatusUpdateV30Api
-func UpdateProjectStatus(c *ad_open_sdk_go.Client, accessToken string, advID int64, projectIDs []int64, optStatus string) {
+func UpdateProjectStatus(c *ad_open_sdk_go.Client, accessToken string, advID int64, projectIDs []int64, optStatus string) (string, error) {
 	ctx := context.Background()
 
 	var status models.ProjectStatusUpdateV30DataOptStatus
@@ -66,7 +69,7 @@ func UpdateProjectStatus(c *ad_open_sdk_go.Client, accessToken string, advID int
 	case "disable":
 		status = models.DISABLE_ProjectStatusUpdateV30DataOptStatus
 	default:
-		log.Fatalf("未知状态: %s (可选: enable, disable)", optStatus)
+		return "", fmt.Errorf("未知状态: %s (可选: enable, disable)", optStatus)
 	}
 
 	data := make([]*models.ProjectStatusUpdateV30RequestDataInner, len(projectIDs))
@@ -87,15 +90,17 @@ func UpdateProjectStatus(c *ad_open_sdk_go.Client, accessToken string, advID int
 		ProjectStatusUpdateV30Request(req).
 		Execute()
 	if err != nil {
-		log.Fatalf("更新项目状态失败: %v", err)
+		return "", fmt.Errorf("更新项目状态失败: %w", err)
 	}
-	checkResp("更新项目状态", resp.Code, resp.Message)
-	fmt.Printf("项目状态已更新为: %s\n", optStatus)
+	if err := CheckResp("更新项目状态", resp.Code, resp.Message); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("项目状态已更新为: %s\n", optStatus), nil
 }
 
 // UpdateProjectBudget updates project budget (v3).
 // API: 11-006 ProjectBudgetUpdateV30Api
-func UpdateProjectBudget(c *ad_open_sdk_go.Client, accessToken string, advID int64, projectID int64, budget float64, budgetMode string) {
+func UpdateProjectBudget(c *ad_open_sdk_go.Client, accessToken string, advID int64, projectID int64, budget float64, budgetMode string) (string, error) {
 	ctx := context.Background()
 
 	var mode models.ProjectBudgetUpdateV30DataBudgetMode
@@ -105,7 +110,7 @@ func UpdateProjectBudget(c *ad_open_sdk_go.Client, accessToken string, advID int
 	case "infinite":
 		mode = models.BUDGET_MODE_INFINITE_ProjectBudgetUpdateV30DataBudgetMode
 	default:
-		log.Fatalf("未知预算模式: %s (可选: day, infinite)", budgetMode)
+		return "", fmt.Errorf("未知预算模式: %s (可选: day, infinite)", budgetMode)
 	}
 
 	req := models.ProjectBudgetUpdateV30Request{
@@ -124,15 +129,17 @@ func UpdateProjectBudget(c *ad_open_sdk_go.Client, accessToken string, advID int
 		ProjectBudgetUpdateV30Request(req).
 		Execute()
 	if err != nil {
-		log.Fatalf("更新项目预算失败: %v", err)
+		return "", fmt.Errorf("更新项目预算失败: %w", err)
 	}
-	checkResp("更新项目预算", resp.Code, resp.Message)
-	fmt.Printf("项目 %d 预算已更新为 %.2f 元 (模式: %s)\n", projectID, budget, budgetMode)
+	if err := CheckResp("更新项目预算", resp.Code, resp.Message); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("项目 %d 预算已更新为 %.2f 元 (模式: %s)\n", projectID, budget, budgetMode), nil
 }
 
 // DeleteProjects deletes projects (v3).
 // API: 11-004 ProjectDeleteV30Api
-func DeleteProjects(c *ad_open_sdk_go.Client, accessToken string, advID int64, projectIDs []int64) {
+func DeleteProjects(c *ad_open_sdk_go.Client, accessToken string, advID int64, projectIDs []int64) (string, error) {
 	ctx := context.Background()
 	req := models.ProjectDeleteV30Request{
 		AdvertiserId: advID,
@@ -144,15 +151,17 @@ func DeleteProjects(c *ad_open_sdk_go.Client, accessToken string, advID int64, p
 		ProjectDeleteV30Request(req).
 		Execute()
 	if err != nil {
-		log.Fatalf("删除项目失败: %v", err)
+		return "", fmt.Errorf("删除项目失败: %w", err)
 	}
-	checkResp("删除项目", resp.Code, resp.Message)
-	fmt.Println("项目已删除")
+	if err := CheckResp("删除项目", resp.Code, resp.Message); err != nil {
+		return "", err
+	}
+	return "项目已删除\n", nil
 }
 
 // GetProjectCostProtectStatus queries project cost protection (v3).
 // API: 11-013 ProjectCostProtectStatusGetV30Api
-func GetProjectCostProtectStatus(c *ad_open_sdk_go.Client, accessToken string, advID int64, projectIDs []int64) {
+func GetProjectCostProtectStatus(c *ad_open_sdk_go.Client, accessToken string, advID int64, projectIDs []int64) (string, error) {
 	ctx := context.Background()
 	resp, _, err := c.ProjectCostProtectStatusGetV30Api().
 		Get(ctx).
@@ -161,14 +170,38 @@ func GetProjectCostProtectStatus(c *ad_open_sdk_go.Client, accessToken string, a
 		ProjectIds(projectIDs).
 		Execute()
 	if err != nil {
-		log.Fatalf("查询项目成本保护状态失败: %v", err)
+		return "", fmt.Errorf("查询项目成本保护状态失败: %w", err)
 	}
-	checkResp("查询项目成本保护状态", resp.Code, resp.Message)
+	if err := CheckResp("查询项目成本保护状态", resp.Code, resp.Message); err != nil {
+		return "", err
+	}
 
-	if resp.Data == nil {
-		fmt.Println("暂无成本保护数据")
-		return
+	var b strings.Builder
+	if resp.Data == nil || len(resp.Data.CompensateStatusInfoList) == 0 {
+		b.WriteString("暂无成本保护数据\n")
+		return b.String(), nil
 	}
-	fmt.Println("=== 项目成本保护状态 ===")
-	fmt.Printf("%+v\n", resp.Data)
+	b.WriteString("=== 项目成本保护状态 ===\n\n")
+	for _, item := range resp.Data.CompensateStatusInfoList {
+		writeField(&b, "项目ID", item.ProjectId)
+		writeField(&b, "保障状态", item.CompensateStatus)
+		writeFieldFloat(&b, "赔付金额(元)", item.CompensateAmount)
+		if len(item.CompensateEndReasons) > 0 {
+			fmt.Fprintf(&b, "  %-16s", "结束原因")
+			for _, r := range item.CompensateEndReasons {
+				fmt.Fprintf(&b, " %s", r)
+			}
+			b.WriteString("\n")
+		}
+		if len(item.CompensateInvalidReasons) > 0 {
+			fmt.Fprintf(&b, "  %-16s", "失效原因")
+			for _, r := range item.CompensateInvalidReasons {
+				fmt.Fprintf(&b, " %s", r)
+			}
+			b.WriteString("\n")
+		}
+		writeField(&b, "赔付规则", item.CompensateUrl)
+		b.WriteString("  ----------\n")
+	}
+	return b.String(), nil
 }

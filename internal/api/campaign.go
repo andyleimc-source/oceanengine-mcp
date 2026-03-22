@@ -3,7 +3,7 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
+	"strings"
 
 	ad_open_sdk_go "github.com/oceanengine/ad_open_sdk_go"
 	"github.com/oceanengine/ad_open_sdk_go/models"
@@ -11,7 +11,7 @@ import (
 
 // ListCampaigns queries ad groups (v2).
 // API: 09-002 CampaignGetV2Api
-func ListCampaigns(c *ad_open_sdk_go.Client, accessToken string, advID int64) {
+func ListCampaigns(c *ad_open_sdk_go.Client, accessToken string, advID int64) (string, error) {
 	ctx := context.Background()
 	fields := []string{
 		"id", "name", "budget_mode", "budget",
@@ -26,34 +26,37 @@ func ListCampaigns(c *ad_open_sdk_go.Client, accessToken string, advID int64) {
 		PageSize(100).
 		Execute()
 	if err != nil {
-		log.Fatalf("查询广告组失败: %v", err)
+		return "", fmt.Errorf("查询广告组失败: %w", err)
 	}
-	checkResp("查询广告组", resp.Code, resp.Message)
+	if err := CheckResp("查询广告组", resp.Code, resp.Message); err != nil {
+		return "", err
+	}
 
+	var b strings.Builder
 	if resp.Data == nil || len(resp.Data.List) == 0 {
-		fmt.Println("暂无广告组数据")
-		return
+		b.WriteString("暂无广告组数据\n")
+		return b.String(), nil
 	}
 
-	fmt.Println("=== 广告组列表 ===")
-	fmt.Println()
+	b.WriteString("=== 广告组列表 ===\n\n")
 	for i, item := range resp.Data.List {
-		fmt.Printf("#%d\n", i+1)
-		printField("广告组ID", item.Id)
-		printField("名称", item.Name)
-		printField("预算模式", item.BudgetMode)
-		printFieldFloat("预算(元)", item.Budget)
-		printField("推广目的", item.LandingType)
-		printField("状态", item.Status)
-		printField("创建时间", item.CampaignCreateTime)
-		fmt.Println("  ----------")
+		fmt.Fprintf(&b, "#%d\n", i+1)
+		writeField(&b, "广告组ID", item.Id)
+		writeField(&b, "名称", item.Name)
+		writeField(&b, "预算模式", item.BudgetMode)
+		writeFieldFloat(&b, "预算(元)", item.Budget)
+		writeField(&b, "推广目的", item.LandingType)
+		writeField(&b, "状态", item.Status)
+		writeField(&b, "创建时间", item.CampaignCreateTime)
+		b.WriteString("  ----------\n")
 	}
-	printPageInfo(resp.Data.PageInfo)
+	writePageInfo(&b, resp.Data.PageInfo)
+	return b.String(), nil
 }
 
 // UpdateCampaignStatus updates ad group status (v2).
 // API: 09-004 CampaignUpdateStatusV2Api
-func UpdateCampaignStatus(c *ad_open_sdk_go.Client, accessToken string, advID int64, campaignIDs []int64, optStatus string) {
+func UpdateCampaignStatus(c *ad_open_sdk_go.Client, accessToken string, advID int64, campaignIDs []int64, optStatus string) (string, error) {
 	ctx := context.Background()
 
 	var status models.CampaignUpdateStatusV2OptStatus
@@ -65,7 +68,7 @@ func UpdateCampaignStatus(c *ad_open_sdk_go.Client, accessToken string, advID in
 	case "delete":
 		status = models.DELETE_CampaignUpdateStatusV2OptStatus
 	default:
-		log.Fatalf("未知状态: %s (可选: enable, disable, delete)", optStatus)
+		return "", fmt.Errorf("未知状态: %s (可选: enable, disable, delete)", optStatus)
 	}
 
 	req := models.CampaignUpdateStatusV2Request{
@@ -79,8 +82,10 @@ func UpdateCampaignStatus(c *ad_open_sdk_go.Client, accessToken string, advID in
 		CampaignUpdateStatusV2Request(req).
 		Execute()
 	if err != nil {
-		log.Fatalf("更新广告组状态失败: %v", err)
+		return "", fmt.Errorf("更新广告组状态失败: %w", err)
 	}
-	checkResp("更新广告组状态", resp.Code, resp.Message)
-	fmt.Printf("广告组状态已更新为: %s\n", optStatus)
+	if err := CheckResp("更新广告组状态", resp.Code, resp.Message); err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("广告组状态已更新为: %s\n", optStatus), nil
 }

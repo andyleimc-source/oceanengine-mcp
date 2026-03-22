@@ -47,23 +47,23 @@ func displayName(key string) string {
 	return key
 }
 
-// PrintMetricsOrdered prints metrics in the given order, skipping zeros.
-func PrintMetricsOrdered(metrics map[string]string, order []string) {
+// PrintMetricsOrdered writes metrics in the given order to b, skipping zeros.
+func PrintMetricsOrdered(b *strings.Builder, metrics map[string]string, order []string) {
 	for _, key := range order {
 		val, ok := metrics[key]
 		if !ok || isZero(val) {
 			continue
 		}
 		if isPercentField(key) {
-			fmt.Printf("  %-24s %s%%\n", displayName(key), val)
+			fmt.Fprintf(b, "  %-24s %s%%\n", displayName(key), val)
 		} else {
-			fmt.Printf("  %-24s %s\n", displayName(key), val)
+			fmt.Fprintf(b, "  %-24s %s\n", displayName(key), val)
 		}
 	}
 }
 
-// PrintMetricsSorted prints all non-zero metrics sorted alphabetically.
-func PrintMetricsSorted(m map[string]string) {
+// PrintMetricsSorted writes all non-zero metrics sorted alphabetically to b.
+func PrintMetricsSorted(b *strings.Builder, m map[string]string) {
 	keys := make([]string, 0, len(m))
 	for k := range m {
 		keys = append(keys, k)
@@ -75,14 +75,14 @@ func PrintMetricsSorted(m map[string]string) {
 			continue
 		}
 		if isPercentField(key) {
-			fmt.Printf("  %-24s %s%%\n", displayName(key), val)
+			fmt.Fprintf(b, "  %-24s %s%%\n", displayName(key), val)
 		} else {
-			fmt.Printf("  %-24s %s\n", displayName(key), val)
+			fmt.Fprintf(b, "  %-24s %s\n", displayName(key), val)
 		}
 	}
 }
 
-// Separator prints a horizontal line.
-func Separator() {
-	fmt.Println(strings.Repeat("-", 60))
+// Separator writes a horizontal line to b.
+func Separator(b *strings.Builder) {
+	b.WriteString(strings.Repeat("-", 60) + "\n")
 }

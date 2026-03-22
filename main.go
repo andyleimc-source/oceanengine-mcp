@@ -5,19 +5,47 @@ import (
 	"log"
 	"os"
 	"strconv"
+	"strings"
 	"time"
 
-	ad_open_sdk_go "github.com/oceanengine/ad_open_sdk_go"
 	"github.com/joho/godotenv"
 
-	"ocean/internal/api"
-	"ocean/internal/auth"
-	"ocean/internal/client"
+	"github.com/andyleimc-source/oceanengine-mcp/internal/api"
+	"github.com/andyleimc-source/oceanengine-mcp/internal/auth"
+	"github.com/andyleimc-source/oceanengine-mcp/internal/client"
 )
+
+// 通过 -ldflags 注入: go build -ldflags "-X main.version=1.0.0"
+var version = "dev"
+
+// Debug 模式，通过 --debug 标志启用
+var debug = false
 
 func main() {
 	log.SetFlags(log.LstdFlags | log.Lshortfile)
+
+	// 解析全局 --debug 标志
+	args := filterGlobalFlags(os.Args[1:])
+	if debug {
+		log.Println("[debug] 调试模式已启用")
+	}
+
 	_ = godotenv.Load()
+
+	if len(args) < 1 {
+		printUsage()
+		os.Exit(1)
+	}
+
+	cmd := args[0]
+	// 将过滤后的参数放回 os.Args 以保持后续解析兼容
+	os.Args = append([]string{os.Args[0]}, args...)
+
+	// version 不需要任何配置
+	if cmd == "version" {
+		fmt.Printf("ocean %s\n", version)
+		return
+	}
 
 	appIDStr := os.Getenv("APP_ID")
 	secret := os.Getenv("APP_SECRET")
@@ -29,32 +57,46 @@ func main() {
 		log.Fatalf("APP_ID 格式错误: %v", err)
 	}
 
-	if len(os.Args) < 2 {
-		printUsage()
-		os.Exit(1)
+	c := client.New()
+	if debug {
+		c.SetLogEnable(true)
 	}
 
-	c := client.New()
-
-	switch os.Args[1] {
-	case "auth":
+	// auth 不需要 token 和 advID
+	if cmd == "auth" {
 		auth.StartAuthServer(c, appID, secret)
+		return
+	}
 
-	case "accounts":
-		token := mustToken(c, appID, secret)
-		auth.ListAccounts(c, token.AccessToken)
+	// 其余命令都需要 token
+	token, err := client.GetValidToken(c, appID, secret)
+	if err != nil {
+		log.Fatal(err)
+	}
+	accessToken := token.AccessToken
 
+	// accounts 只需要 token，不需要 advID
+	if cmd == "accounts" {
+		result, err := auth.ListAccounts(c, accessToken)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print(result)
+		return
+	}
+
+	// 其余所有命令都需要 advID
+	advID := mustAdvertiserID()
+
+	switch cmd {
+	// === 报表 ===
 	case "report":
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-
 		endDate := time.Now().Format("2006-01-02")
 		startDate := time.Now().AddDate(0, 0, -7).Format("2006-01-02")
 		if len(os.Args) >= 4 {
 			startDate = os.Args[2]
 			endDate = os.Args[3]
 		}
-
 		level := api.LevelAdvertiser
 		if len(os.Args) >= 5 {
 			switch os.Args[4] {
@@ -68,225 +110,201 @@ func main() {
 				log.Fatalf("未知报表级别: %s (可选: advertiser, campaign, ad)", os.Args[4])
 			}
 		}
-
-		api.FetchReport(api.ReportParams{
+		result, err := api.FetchReport(api.ReportParams{
 			Client:       c,
-			AccessToken:  token.AccessToken,
+			AccessToken:  accessToken,
 			AdvertiserID: advID,
 			StartDate:    startDate,
 			EndDate:      endDate,
 			Level:        level,
 		})
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print(result)
 
 	case "config":
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		api.FetchReportConfig(c, token.AccessToken, advID)
+		result, err := api.FetchReportConfig(c, accessToken, advID)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print(result)
 
 	// === v2 广告组 Campaign ===
 	case "campaigns":
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		api.ListCampaigns(c, token.AccessToken, advID)
+		result, err := api.ListCampaigns(c, accessToken, advID)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print(result)
 
 	case "campaign-status":
-		// ocean campaign-status enable 123,456
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 4 {
-			log.Fatal("用法: ocean campaign-status <enable|disable|delete> <id1,id2,...>")
+		mustArgs(4, "ocean campaign-status <enable|disable|delete> <id1,id2,...>")
+		result, err := api.UpdateCampaignStatus(c, accessToken, advID, mustParseIDs(os.Args[3]), os.Args[2])
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[3])
-		api.UpdateCampaignStatus(c, token.AccessToken, advID, ids, os.Args[2])
+		fmt.Print(result)
 
 	// === v2 广告计划 Ad ===
 	case "ads":
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		api.ListAds(c, token.AccessToken, advID)
+		result, err := api.ListAds(c, accessToken, advID)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print(result)
 
 	case "ad-bid":
-		// ocean ad-bid <ad_id> <bid>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 4 {
-			log.Fatal("用法: ocean ad-bid <ad_id> <出价金额>")
+		mustArgs(4, "ocean ad-bid <ad_id> <出价金额>")
+		result, err := api.UpdateAdBid(c, accessToken, advID, mustParseInt64(os.Args[2], "ad_id"), mustParseFloat64(os.Args[3], "出价"))
+		if err != nil {
+			log.Fatal(err)
 		}
-		adID := mustParseInt64(os.Args[2], "ad_id")
-		bid := mustParseFloat64(os.Args[3], "出价")
-		api.UpdateAdBid(c, token.AccessToken, advID, adID, bid)
+		fmt.Print(result)
 
 	case "ad-budget":
-		// ocean ad-budget <ad_id> <budget>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 4 {
-			log.Fatal("用法: ocean ad-budget <ad_id> <预算金额>")
+		mustArgs(4, "ocean ad-budget <ad_id> <预算金额>")
+		result, err := api.UpdateAdBudget(c, accessToken, advID, mustParseInt64(os.Args[2], "ad_id"), mustParseFloat64(os.Args[3], "预算"))
+		if err != nil {
+			log.Fatal(err)
 		}
-		adID := mustParseInt64(os.Args[2], "ad_id")
-		budget := mustParseFloat64(os.Args[3], "预算")
-		api.UpdateAdBudget(c, token.AccessToken, advID, adID, budget)
+		fmt.Print(result)
 
 	case "ad-reject":
-		// ocean ad-reject <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 3 {
-			log.Fatal("用法: ocean ad-reject <id1,id2,...>")
+		mustArgs(3, "ocean ad-reject <id1,id2,...>")
+		result, err := api.GetAdRejectReason(c, accessToken, advID, mustParseIDs(os.Args[2]))
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[2])
-		api.GetAdRejectReason(c, token.AccessToken, advID, ids)
+		fmt.Print(result)
 
 	case "ad-cost-protect":
-		// ocean ad-cost-protect <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 3 {
-			log.Fatal("用法: ocean ad-cost-protect <id1,id2,...>")
+		mustArgs(3, "ocean ad-cost-protect <id1,id2,...>")
+		result, err := api.GetAdCostProtectStatus(c, accessToken, advID, mustParseIDs(os.Args[2]))
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[2])
-		api.GetAdCostProtectStatus(c, token.AccessToken, advID, ids)
+		fmt.Print(result)
 
 	// === v3 项目 Project ===
 	case "projects":
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		api.ListProjects(c, token.AccessToken, advID)
+		result, err := api.ListProjects(c, accessToken, advID)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print(result)
 
 	case "project-status":
-		// ocean project-status <enable|disable> <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 4 {
-			log.Fatal("用法: ocean project-status <enable|disable> <id1,id2,...>")
+		mustArgs(4, "ocean project-status <enable|disable> <id1,id2,...>")
+		result, err := api.UpdateProjectStatus(c, accessToken, advID, mustParseIDs(os.Args[3]), os.Args[2])
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[3])
-		api.UpdateProjectStatus(c, token.AccessToken, advID, ids, os.Args[2])
+		fmt.Print(result)
 
 	case "project-budget":
-		// ocean project-budget <project_id> <budget> <day|total|infinite>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 5 {
-			log.Fatal("用法: ocean project-budget <project_id> <预算金额> <day|total|infinite>")
+		mustArgs(5, "ocean project-budget <project_id> <预算金额> <day|total|infinite>")
+		result, err := api.UpdateProjectBudget(c, accessToken, advID, mustParseInt64(os.Args[2], "project_id"), mustParseFloat64(os.Args[3], "预算"), os.Args[4])
+		if err != nil {
+			log.Fatal(err)
 		}
-		projectID := mustParseInt64(os.Args[2], "project_id")
-		budget := mustParseFloat64(os.Args[3], "预算")
-		api.UpdateProjectBudget(c, token.AccessToken, advID, projectID, budget, os.Args[4])
+		fmt.Print(result)
 
 	case "project-delete":
-		// ocean project-delete <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 3 {
-			log.Fatal("用法: ocean project-delete <id1,id2,...>")
+		mustArgs(3, "ocean project-delete <id1,id2,...>")
+		result, err := api.DeleteProjects(c, accessToken, advID, mustParseIDs(os.Args[2]))
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[2])
-		api.DeleteProjects(c, token.AccessToken, advID, ids)
+		fmt.Print(result)
 
 	case "project-cost-protect":
-		// ocean project-cost-protect <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 3 {
-			log.Fatal("用法: ocean project-cost-protect <id1,id2,...>")
+		mustArgs(3, "ocean project-cost-protect <id1,id2,...>")
+		result, err := api.GetProjectCostProtectStatus(c, accessToken, advID, mustParseIDs(os.Args[2]))
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[2])
-		api.GetProjectCostProtectStatus(c, token.AccessToken, advID, ids)
+		fmt.Print(result)
 
 	// === v3 广告单元 Promotion ===
 	case "promotions":
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		api.ListPromotions(c, token.AccessToken, advID)
+		result, err := api.ListPromotions(c, accessToken, advID)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print(result)
 
 	case "promotion-status":
-		// ocean promotion-status <enable|disable> <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 4 {
-			log.Fatal("用法: ocean promotion-status <enable|disable> <id1,id2,...>")
+		mustArgs(4, "ocean promotion-status <enable|disable> <id1,id2,...>")
+		result, err := api.UpdatePromotionStatus(c, accessToken, advID, mustParseIDs(os.Args[3]), os.Args[2])
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[3])
-		api.UpdatePromotionStatus(c, token.AccessToken, advID, ids, os.Args[2])
+		fmt.Print(result)
 
 	case "promotion-bid":
-		// ocean promotion-bid <promotion_id> <bid>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 4 {
-			log.Fatal("用法: ocean promotion-bid <promotion_id> <出价金额>")
+		mustArgs(4, "ocean promotion-bid <promotion_id> <出价金额>")
+		result, err := api.UpdatePromotionBid(c, accessToken, advID, mustParseInt64(os.Args[2], "promotion_id"), mustParseFloat64(os.Args[3], "出价"))
+		if err != nil {
+			log.Fatal(err)
 		}
-		promotionID := mustParseInt64(os.Args[2], "promotion_id")
-		bid := mustParseFloat64(os.Args[3], "出价")
-		api.UpdatePromotionBid(c, token.AccessToken, advID, promotionID, bid)
+		fmt.Print(result)
 
 	case "promotion-budget":
-		// ocean promotion-budget <promotion_id> <budget>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 4 {
-			log.Fatal("用法: ocean promotion-budget <promotion_id> <预算金额>")
+		mustArgs(4, "ocean promotion-budget <promotion_id> <预算金额>")
+		result, err := api.UpdatePromotionBudget(c, accessToken, advID, mustParseInt64(os.Args[2], "promotion_id"), mustParseFloat64(os.Args[3], "预算"))
+		if err != nil {
+			log.Fatal(err)
 		}
-		promotionID := mustParseInt64(os.Args[2], "promotion_id")
-		budget := mustParseFloat64(os.Args[3], "预算")
-		api.UpdatePromotionBudget(c, token.AccessToken, advID, promotionID, budget)
+		fmt.Print(result)
 
 	case "promotion-delete":
-		// ocean promotion-delete <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 3 {
-			log.Fatal("用法: ocean promotion-delete <id1,id2,...>")
+		mustArgs(3, "ocean promotion-delete <id1,id2,...>")
+		result, err := api.DeletePromotions(c, accessToken, advID, mustParseIDs(os.Args[2]))
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[2])
-		api.DeletePromotions(c, token.AccessToken, advID, ids)
+		fmt.Print(result)
 
 	case "promotion-reject":
-		// ocean promotion-reject <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 3 {
-			log.Fatal("用法: ocean promotion-reject <id1,id2,...>")
+		mustArgs(3, "ocean promotion-reject <id1,id2,...>")
+		result, err := api.GetPromotionRejectReason(c, accessToken, advID, mustParseIDs(os.Args[2]))
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[2])
-		api.GetPromotionRejectReason(c, token.AccessToken, advID, ids)
+		fmt.Print(result)
 
 	case "promotion-cost-protect":
-		// ocean promotion-cost-protect <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 3 {
-			log.Fatal("用法: ocean promotion-cost-protect <id1,id2,...>")
+		mustArgs(3, "ocean promotion-cost-protect <id1,id2,...>")
+		result, err := api.GetPromotionCostProtectStatus(c, accessToken, advID, mustParseIDs(os.Args[2]))
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[2])
-		api.GetPromotionCostProtectStatus(c, token.AccessToken, advID, ids)
+		fmt.Print(result)
 
 	// === 创意 Creative ===
 	case "creatives":
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		api.ListCreatives(c, token.AccessToken, advID)
+		result, err := api.ListCreatives(c, accessToken, advID)
+		if err != nil {
+			log.Fatal(err)
+		}
+		fmt.Print(result)
 
 	case "creative-detail":
-		// ocean creative-detail <ad_id>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 3 {
-			log.Fatal("用法: ocean creative-detail <ad_id>")
+		mustArgs(3, "ocean creative-detail <ad_id>")
+		result, err := api.GetCreativeDetail(c, accessToken, advID, mustParseInt64(os.Args[2], "ad_id"))
+		if err != nil {
+			log.Fatal(err)
 		}
-		adID := mustParseInt64(os.Args[2], "ad_id")
-		api.GetCreativeDetail(c, token.AccessToken, advID, adID)
+		fmt.Print(result)
 
 	case "creative-reject":
-		// ocean creative-reject <id1,id2,...>
-		advID := mustAdvertiserID()
-		token := mustToken(c, appID, secret)
-		if len(os.Args) < 3 {
-			log.Fatal("用法: ocean creative-reject <id1,id2,...>")
+		mustArgs(3, "ocean creative-reject <id1,id2,...>")
+		result, err := api.GetCreativeRejectReason(c, accessToken, advID, mustParseIDs(os.Args[2]))
+		if err != nil {
+			log.Fatal(err)
 		}
-		ids := mustParseIDs(os.Args[2])
-		api.GetCreativeRejectReason(c, token.AccessToken, advID, ids)
+		fmt.Print(result)
 
 	default:
 		printUsage()
@@ -294,12 +312,24 @@ func main() {
 	}
 }
 
-func mustToken(c *ad_open_sdk_go.Client, appID int64, secret string) *client.TokenStore {
-	token, err := client.GetValidToken(c, appID, secret)
-	if err != nil {
-		log.Fatal(err)
+// filterGlobalFlags 从参数中提取 --debug 等全局标志，返回过滤后的参数。
+func filterGlobalFlags(args []string) []string {
+	var filtered []string
+	for _, arg := range args {
+		switch arg {
+		case "--debug":
+			debug = true
+		default:
+			filtered = append(filtered, arg)
+		}
 	}
-	return token
+	return filtered
+}
+
+func mustArgs(n int, usage string) {
+	if len(os.Args) < n {
+		log.Fatalf("用法: %s", usage)
+	}
 }
 
 func mustAdvertiserID() int64 {
@@ -331,35 +361,23 @@ func mustParseFloat64(s string, name string) float64 {
 }
 
 func mustParseIDs(s string) []int64 {
-	parts := splitComma(s)
-	ids := make([]int64, len(parts))
-	for i, p := range parts {
+	parts := strings.Split(s, ",")
+	var ids []int64
+	for _, p := range parts {
+		p = strings.TrimSpace(p)
+		if p == "" {
+			continue
+		}
 		id, err := strconv.ParseInt(p, 10, 64)
 		if err != nil {
 			log.Fatalf("ID 格式错误: %s", p)
 		}
-		ids[i] = id
+		ids = append(ids, id)
+	}
+	if len(ids) == 0 {
+		log.Fatal("请提供至少一个 ID")
 	}
 	return ids
-}
-
-func splitComma(s string) []string {
-	var result []string
-	current := ""
-	for _, ch := range s {
-		if ch == ',' {
-			if current != "" {
-				result = append(result, current)
-			}
-			current = ""
-		} else {
-			current += string(ch)
-		}
-	}
-	if current != "" {
-		result = append(result, current)
-	}
-	return result
 }
 
 func printUsage() {
@@ -368,6 +386,7 @@ func printUsage() {
 用法:
   ocean auth                                         OAuth2 授权
   ocean accounts                                     查看已授权账户
+  ocean version                                      查看版本号
 
 报表:
   ocean report                                       最近7天广告主报表
@@ -407,6 +426,9 @@ v3 广告单元 (Promotion):
   ocean creatives                                    查询创意列表
   ocean creative-detail <ad_id>                      查看创意详情
   ocean creative-reject <ids>                        查看审核拒绝原因
+
+全局选项:
+  --debug                                            打印 SDK 请求/响应日志
 
 注: <ids> 支持逗号分隔多个ID, 如 123,456,789`)
 }

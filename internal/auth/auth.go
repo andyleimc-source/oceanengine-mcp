@@ -6,10 +6,11 @@ import (
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 
 	ad_open_sdk_go "github.com/oceanengine/ad_open_sdk_go"
 	"github.com/oceanengine/ad_open_sdk_go/models"
-	"ocean/internal/client"
+	"github.com/andyleimc-source/oceanengine-mcp/internal/client"
 )
 
 func buildAuthURL(appID string, redirectURI string) string {
@@ -103,30 +104,31 @@ func StartAuthServer(c *ad_open_sdk_go.Client, appID int64, secret string) {
 	server.Close()
 }
 
-// ListAccounts prints authorized accounts.
-func ListAccounts(c *ad_open_sdk_go.Client, accessToken string) {
+// ListAccounts returns authorized accounts as a formatted string.
+func ListAccounts(c *ad_open_sdk_go.Client, accessToken string) (string, error) {
 	ctx := context.Background()
 	resp, _, err := c.Oauth2AdvertiserGetApi().
 		Get(ctx).
 		AccessToken(accessToken).
 		Execute()
 	if err != nil {
-		log.Fatalf("查询授权账户失败: %v", err)
+		return "", fmt.Errorf("查询授权账户失败: %w", err)
 	}
 	if resp.Code != nil && *resp.Code != 0 {
 		msg := ""
 		if resp.Message != nil {
 			msg = *resp.Message
 		}
-		log.Fatalf("查询授权账户错误: code=%d msg=%s", *resp.Code, msg)
-	}
-	if resp.Data == nil || len(resp.Data.List) == 0 {
-		fmt.Println("没有已授权的账户")
-		return
+		return "", fmt.Errorf("查询授权账户错误: code=%d msg=%s", *resp.Code, msg)
 	}
 
-	fmt.Println("=== 已授权账户列表 ===")
-	fmt.Println()
+	var b strings.Builder
+	if resp.Data == nil || len(resp.Data.List) == 0 {
+		b.WriteString("没有已授权的账户\n")
+		return b.String(), nil
+	}
+
+	b.WriteString("=== 已授权账户列表 ===\n\n")
 	for _, item := range resp.Data.List {
 		var id int64
 		if item.AccountId != nil {
@@ -148,9 +150,9 @@ func ListAccounts(c *ad_open_sdk_go.Client, accessToken string) {
 				valid = "无效"
 			}
 		}
-		fmt.Printf("  ID: %d\n  名称: %s\n  类型: %s\n  状态: %s\n", id, name, accType, valid)
-		fmt.Println("  ----------")
+		fmt.Fprintf(&b, "  ID: %d\n  名称: %s\n  类型: %s\n  状态: %s\n", id, name, accType, valid)
+		b.WriteString("  ----------\n")
 	}
-	fmt.Println()
-	fmt.Println("请将类型为 ADVERTISER 的账户 ID 填入 .env 的 ADVERTISER_ID")
+	b.WriteString("\n请将类型为 ADVERTISER 的账户 ID 填入 .env 的 ADVERTISER_ID\n")
+	return b.String(), nil
 }

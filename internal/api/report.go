@@ -3,11 +3,11 @@ package api
 import (
 	"context"
 	"fmt"
-	"log"
+	"strings"
 
 	ad_open_sdk_go "github.com/oceanengine/ad_open_sdk_go"
 	"github.com/oceanengine/ad_open_sdk_go/models"
-	"ocean/pkg/format"
+	"github.com/andyleimc-source/oceanengine-mcp/pkg/format"
 )
 
 // ReportLevel determines the grouping dimension for reports.
@@ -30,7 +30,7 @@ type ReportParams struct {
 
 // FetchReport fetches a v3 custom report at the given level.
 // API: 20-005 ReportCustomGetV30Api
-func FetchReport(p ReportParams) {
+func FetchReport(p ReportParams) (string, error) {
 	ctx := context.Background()
 
 	var metrics []string
@@ -74,56 +74,54 @@ func FetchReport(p ReportParams) {
 		PageSize(pageSize).
 		Execute()
 	if err != nil {
-		log.Fatalf("拉取%s失败: %v", title, err)
+		return "", fmt.Errorf("拉取%s失败: %w", title, err)
 	}
-	if resp.Code != nil && *resp.Code != 0 {
-		msg := ""
-		if resp.Message != nil {
-			msg = *resp.Message
-		}
-		log.Fatalf("%s错误: code=%d msg=%s", title, *resp.Code, msg)
+	if err := CheckResp(title, resp.Code, resp.Message); err != nil {
+		return "", err
 	}
 
-	fmt.Printf("=== %s ===\n", title)
-	fmt.Printf("日期范围: %s ~ %s\n\n", p.StartDate, p.EndDate)
+	var b strings.Builder
+	fmt.Fprintf(&b, "=== %s ===\n", title)
+	fmt.Fprintf(&b, "日期范围: %s ~ %s\n\n", p.StartDate, p.EndDate)
 
 	if resp.Data == nil || len(resp.Data.Rows) == 0 {
-		fmt.Println("暂无数据")
-		return
+		b.WriteString("暂无数据\n")
+		return b.String(), nil
 	}
 
 	for i, row := range resp.Data.Rows {
 		switch p.Level {
 		case LevelAdvertiser:
 			if d := row.Dimensions["stat_time_day"]; d != "" {
-				fmt.Printf("日期: %s\n", d)
+				fmt.Fprintf(&b, "日期: %s\n", d)
 			}
 		case LevelProject:
 			name := row.Dimensions["cdp_project_name"]
 			if name == "" {
 				name = row.Dimensions["cdp_project_id"]
 			}
-			fmt.Printf("#%d %s\n", i+1, name)
+			fmt.Fprintf(&b, "#%d %s\n", i+1, name)
 		case LevelPromotion:
 			name := row.Dimensions["cdp_promotion_name"]
 			if name == "" {
 				name = row.Dimensions["cdp_promotion_id"]
 			}
-			fmt.Printf("#%d %s\n", i+1, name)
+			fmt.Fprintf(&b, "#%d %s\n", i+1, name)
 		}
-		format.PrintMetricsOrdered(row.Metrics, metrics)
-		format.Separator()
+		format.PrintMetricsOrdered(&b, row.Metrics, metrics)
+		format.Separator(&b)
 	}
 
 	if p.Level == LevelAdvertiser && resp.Data.TotalMetrics != nil && len(resp.Data.TotalMetrics) > 0 {
-		fmt.Println("=== 汇总 ===")
-		format.PrintMetricsSorted(resp.Data.TotalMetrics)
+		b.WriteString("=== 汇总 ===\n")
+		format.PrintMetricsSorted(&b, resp.Data.TotalMetrics)
 	}
+	return b.String(), nil
 }
 
 // FetchReportConfig queries available metrics and dimensions.
 // API: 20-007 ReportCustomConfigGetV30Api
-func FetchReportConfig(client *ad_open_sdk_go.Client, accessToken string, advertiserID int64) {
+func FetchReportConfig(client *ad_open_sdk_go.Client, accessToken string, advertiserID int64) (string, error) {
 	ctx := context.Background()
 	topics := []*models.ReportCustomConfigGetV30DataTopics{
 		models.BASIC_DATA_ReportCustomConfigGetV30DataTopics.Ptr(),
@@ -135,27 +133,25 @@ func FetchReportConfig(client *ad_open_sdk_go.Client, accessToken string, advert
 		DataTopics(topics).
 		Execute()
 	if err != nil {
-		log.Fatalf("查询报表配置失败: %v", err)
+		return "", fmt.Errorf("查询报表配置失败: %w", err)
 	}
-	if resp.Code != nil && *resp.Code != 0 {
-		msg := ""
-		if resp.Message != nil {
-			msg = *resp.Message
-		}
-		log.Fatalf("报表配置错误: code=%d msg=%s", *resp.Code, msg)
+	if err := CheckResp("查询报表配置", resp.Code, resp.Message); err != nil {
+		return "", err
 	}
+
+	var b strings.Builder
 	if resp.Data == nil {
-		fmt.Println("无配置数据")
-		return
+		b.WriteString("无配置数据\n")
+		return b.String(), nil
 	}
 	for _, item := range resp.Data.List {
 		topic := "-"
 		if item.DataTopic != nil {
 			topic = string(*item.DataTopic)
 		}
-		fmt.Printf("=== 数据集: %s ===\n\n", topic)
+		fmt.Fprintf(&b, "=== 数据集: %s ===\n\n", topic)
 
-		fmt.Println("可用维度:")
+		b.WriteString("可用维度:\n")
 		for _, d := range item.Dimensions {
 			field, name := "", ""
 			if d.Field != nil {
@@ -164,10 +160,10 @@ func FetchReportConfig(client *ad_open_sdk_go.Client, accessToken string, advert
 			if d.Name != nil {
 				name = *d.Name
 			}
-			fmt.Printf("  %-30s %s\n", field, name)
+			fmt.Fprintf(&b, "  %-30s %s\n", field, name)
 		}
 
-		fmt.Println("\n可用指标:")
+		b.WriteString("\n可用指标:\n")
 		for _, m := range item.Metrics {
 			field, name := "", ""
 			if m.Field != nil {
@@ -176,8 +172,9 @@ func FetchReportConfig(client *ad_open_sdk_go.Client, accessToken string, advert
 			if m.Name != nil {
 				name = *m.Name
 			}
-			fmt.Printf("  %-30s %s\n", field, name)
+			fmt.Fprintf(&b, "  %-30s %s\n", field, name)
 		}
-		fmt.Println()
+		b.WriteString("\n")
 	}
+	return b.String(), nil
 }
