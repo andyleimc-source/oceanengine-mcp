@@ -7,6 +7,7 @@ token.json
 # 构建产物
 ocean
 ocean-*
+oceanengine-mcp
 
 # IDE
 .idea/
