@@ -9,6 +9,67 @@ import (
 	"github.com/oceanengine/ad_open_sdk_go/models"
 )
 
+// CreatePromotion creates a new promotion/ad unit (v3).
+// API: 12-001 PromotionCreateV30Api
+func CreatePromotion(c *ad_open_sdk_go.Client, accessToken string, advID int64, projectID int64, name string, budget float64, budgetMode string, bid float64, bidType string, audienceMode string, startTime string, endTime string) (string, error) {
+	ctx := context.Background()
+
+	req := models.PromotionCreateV30Request{
+		AdvertiserId: advID,
+		ProjectId:    projectID,
+		Name:         name,
+	}
+
+	if budget > 0 {
+		req.Budget = &budget
+	}
+	if budgetMode != "" {
+		switch budgetMode {
+		case "day":
+			m := models.BUDGET_MODE_DAY_PromotionCreateV30BudgetMode
+			req.BudgetMode = &m
+		case "infinite", "total":
+			m := models.BUDGET_MODE_TOTAL_PromotionCreateV30BudgetMode
+			req.BudgetMode = &m
+		default:
+			return "", fmt.Errorf("未知预算模式: %s (可选: day, infinite)", budgetMode)
+		}
+	}
+	if bid > 0 {
+		req.Bid = &bid
+	}
+
+	resp, _, err := c.PromotionCreateV30Api().
+		Post(ctx).
+		AccessToken(accessToken).
+		PromotionCreateV30Request(req).
+		Execute()
+	if err != nil {
+		return "", fmt.Errorf("创建广告单元失败: %w", err)
+	}
+	if err := CheckResp("创建广告单元", resp.Code, resp.Message); err != nil {
+		return "", err
+	}
+
+	var b strings.Builder
+	b.WriteString("=== 广告单元创建成功 ===\n\n")
+	if resp.Data != nil && resp.Data.PromotionId != nil {
+		fmt.Fprintf(&b, "  %-16s %d\n", "单元ID", *resp.Data.PromotionId)
+	}
+	writeField(&b, "所属项目ID", projectID)
+	writeField(&b, "名称", name)
+	if budgetMode != "" {
+		writeField(&b, "预算模式", budgetMode)
+	}
+	if budget > 0 {
+		writeFieldFloat(&b, "预算(元)", &budget)
+	}
+	if bid > 0 {
+		writeFieldFloat(&b, "出价(元)", &bid)
+	}
+	return b.String(), nil
+}
+
 // ListPromotions queries promotions/ad units (v3).
 // API: 12-002 PromotionListV30Api
 func ListPromotions(c *ad_open_sdk_go.Client, accessToken string, advID int64) (string, error) {

@@ -380,6 +380,55 @@ func main() {
 	// ── v3 项目 Project ───────────────────────────────────────────────────────
 
 	s.AddTool(
+		mcp.NewTool("create_project",
+			mcp.WithDescription("创建 v3 广告项目"),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("项目名称"),
+			),
+			mcp.WithNumber("budget",
+				mcp.Description("项目预算（元），不填表示不限预算"),
+			),
+			mcp.WithString("budget_mode",
+				mcp.Description("预算类型：day（日预算）、infinite（不限），默认 infinite"),
+			),
+			mcp.WithString("landing_type",
+				mcp.Description("推广目的：LINK（落地页）、APP（应用推广）、SHOP（商品推广）等，默认 LINK"),
+			),
+			mcp.WithString("start_time",
+				mcp.Description("投放开始时间，格式 2006-01-02"),
+			),
+			mcp.WithString("end_time",
+				mcp.Description("投放结束时间，格式 2006-01-02"),
+			),
+			mcp.WithString("advertiser_id",
+				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
+			),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			args := getArgs(req.Params.Arguments)
+			advID, err := resolveAdvID(args)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			name := getString(args, "name")
+			if name == "" {
+				return mcp.NewToolResultError("name 不能为空"), nil
+			}
+			budget, _ := args["budget"].(float64)
+			budgetMode := getString(args, "budget_mode")
+			if budgetMode == "" {
+				budgetMode = "infinite"
+			}
+			landingType := getString(args, "landing_type")
+			if landingType == "" {
+				landingType = "LINK"
+			}
+			return toolResult(api.CreateProject(c, accessToken, advID, name, budget, budgetMode, landingType, getString(args, "start_time"), getString(args, "end_time")))
+		},
+	)
+
+	s.AddTool(
 		mcp.NewTool("list_projects",
 			mcp.WithDescription("查询 v3 项目列表"),
 			mcp.WithString("advertiser_id",
@@ -509,6 +558,68 @@ func main() {
 	)
 
 	// ── v3 广告单元 Promotion ─────────────────────────────────────────────────
+
+	s.AddTool(
+		mcp.NewTool("create_promotion",
+			mcp.WithDescription("创建 v3 广告单元"),
+			mcp.WithString("project_id",
+				mcp.Required(),
+				mcp.Description("所属项目ID"),
+			),
+			mcp.WithString("name",
+				mcp.Required(),
+				mcp.Description("单元名称"),
+			),
+			mcp.WithNumber("budget",
+				mcp.Description("单元预算（元），不填表示不限预算"),
+			),
+			mcp.WithString("budget_mode",
+				mcp.Description("预算类型：day（日预算）、infinite（不限），默认 infinite"),
+			),
+			mcp.WithNumber("bid",
+				mcp.Description("出价（元），bid_type 为 CUSTOM 时必填"),
+			),
+			mcp.WithString("bid_type",
+				mcp.Description("出价方式：CUSTOM（手动出价）、NO_BID（自动出价），默认 NO_BID"),
+			),
+			mcp.WithString("audience_mode",
+				mcp.Description("定向模式：CUSTOM（自定义）、AUTO（广定向），默认 AUTO"),
+			),
+			mcp.WithString("start_time",
+				mcp.Description("投放开始时间，格式 2006-01-02"),
+			),
+			mcp.WithString("end_time",
+				mcp.Description("投放结束时间，格式 2006-01-02"),
+			),
+			mcp.WithString("advertiser_id",
+				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
+			),
+		),
+		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
+			args := getArgs(req.Params.Arguments)
+			advID, err := resolveAdvID(args)
+			if err != nil {
+				return mcp.NewToolResultError(err.Error()), nil
+			}
+			projectID, err := strconv.ParseInt(getString(args, "project_id"), 10, 64)
+			if err != nil {
+				return mcp.NewToolResultError("project_id 格式错误"), nil
+			}
+			name := getString(args, "name")
+			if name == "" {
+				return mcp.NewToolResultError("name 不能为空"), nil
+			}
+			budget, _ := args["budget"].(float64)
+			budgetMode := getString(args, "budget_mode")
+			if budgetMode == "" {
+				budgetMode = "infinite"
+			}
+			bid, _ := args["bid"].(float64)
+			bidType := getString(args, "bid_type")
+			audienceMode := getString(args, "audience_mode")
+			return toolResult(api.CreatePromotion(c, accessToken, advID, projectID, name, budget, budgetMode, bid, bidType, audienceMode, getString(args, "start_time"), getString(args, "end_time")))
+		},
+	)
 
 	s.AddTool(
 		mcp.NewTool("list_promotions",

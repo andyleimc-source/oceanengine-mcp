@@ -9,6 +9,84 @@ import (
 	"github.com/oceanengine/ad_open_sdk_go/models"
 )
 
+// CreateProject creates a new project (v3).
+// API: 11-001 ProjectCreateV30Api
+func CreateProject(c *ad_open_sdk_go.Client, accessToken string, advID int64, name string, budget float64, budgetMode string, landingType string, startTime string, endTime string) (string, error) {
+	ctx := context.Background()
+
+	var bMode models.ProjectCreateV30DeliverySettingBudgetMode
+	switch budgetMode {
+	case "day":
+		bMode = models.BUDGET_MODE_DAY_ProjectCreateV30DeliverySettingBudgetMode
+	case "infinite":
+		bMode = models.BUDGET_MODE_INFINITE_ProjectCreateV30DeliverySettingBudgetMode
+	default:
+		return "", fmt.Errorf("未知预算模式: %s (可选: day, infinite)", budgetMode)
+	}
+
+	var lType models.ProjectCreateV30LandingType
+	switch landingType {
+	case "LINK":
+		lType = models.LINK_ProjectCreateV30LandingType
+	case "APP":
+		lType = models.APP_ProjectCreateV30LandingType
+	case "SHOP":
+		lType = models.SHOP_ProjectCreateV30LandingType
+	default:
+		lType = models.ProjectCreateV30LandingType(landingType)
+	}
+
+	deliverySetting := models.ProjectCreateV30RequestDeliverySetting{
+		BudgetMode: bMode,
+	}
+	if budget > 0 {
+		deliverySetting.Budget = &budget
+	}
+	if startTime != "" {
+		deliverySetting.StartTime = &startTime
+	}
+	if endTime != "" {
+		deliverySetting.EndTime = &endTime
+	}
+
+	req := models.ProjectCreateV30Request{
+		AdvertiserId: advID,
+		Name:         name,
+		LandingType:  lType,
+		MarketingGoal: models.VIDEO_AND_IMAGE_ProjectCreateV30MarketingGoal,
+		AdType:       models.ALL_ProjectCreateV30AdType,
+		DeliveryRange: models.ProjectCreateV30RequestDeliveryRange{
+			InventoryCatalog: models.UNIVERSAL_SMART_ProjectCreateV30DeliveryRangeInventoryCatalog,
+		},
+		DeliverySetting: deliverySetting,
+	}
+
+	resp, _, err := c.ProjectCreateV30Api().
+		Post(ctx).
+		AccessToken(accessToken).
+		ProjectCreateV30Request(req).
+		Execute()
+	if err != nil {
+		return "", fmt.Errorf("创建项目失败: %w", err)
+	}
+	if err := CheckResp("创建项目", resp.Code, resp.Message); err != nil {
+		return "", err
+	}
+
+	var b strings.Builder
+	b.WriteString("=== 项目创建成功 ===\n\n")
+	if resp.Data != nil && resp.Data.ProjectId != nil {
+		fmt.Fprintf(&b, "  %-16s %d\n", "项目ID", *resp.Data.ProjectId)
+	}
+	writeField(&b, "名称", name)
+	writeField(&b, "推广目的", string(lType))
+	writeField(&b, "预算模式", budgetMode)
+	if budget > 0 {
+		writeFieldFloat(&b, "预算(元)", &budget)
+	}
+	return b.String(), nil
+}
+
 // ListProjects queries projects (v3).
 // API: 11-002 ProjectListV30Api
 func ListProjects(c *ad_open_sdk_go.Client, accessToken string, advID int64) (string, error) {
