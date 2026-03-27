@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"path/filepath"
 	"time"
 
 	ad_open_sdk_go "github.com/oceanengine/ad_open_sdk_go"
@@ -21,8 +22,21 @@ type TokenStore struct {
 
 const tokenFile = "token.json"
 
+func tokenFilePath() string {
+	// Support override via env var for MCP server launched from arbitrary cwd
+	if p := os.Getenv("TOKEN_FILE"); p != "" {
+		return p
+	}
+	// Default: same directory as the running binary
+	exe, err := os.Executable()
+	if err == nil {
+		return exe[:len(exe)-len("/"+filepath.Base(exe))] + "/" + tokenFile
+	}
+	return tokenFile
+}
+
 func LoadToken() (*TokenStore, error) {
-	data, err := os.ReadFile(tokenFile)
+	data, err := os.ReadFile(tokenFilePath())
 	if err != nil {
 		return nil, err
 	}
@@ -38,7 +52,7 @@ func SaveToken(t *TokenStore) error {
 	if err != nil {
 		return err
 	}
-	return os.WriteFile(tokenFile, data, 0600)
+	return os.WriteFile(tokenFilePath(), data, 0600)
 }
 
 func (t *TokenStore) IsExpired() bool {
