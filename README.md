@@ -228,3 +228,12 @@ go build -ldflags "-X main.version=1.0.0" -o ocean .
 ## License
 
 MIT
+
+
+---
+
+## 关注我
+
+<img src="./雷码工坊微信公众号.jpg" alt="雷码工坊笔记微信公众号" width="200" />
+
+**雷码工坊笔记** — 微信扫码关注
