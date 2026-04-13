@@ -267,35 +267,11 @@ func main() {
 		},
 	)
 
+	/* update_ad_bid disabled
 	s.AddTool(
-		mcp.NewTool("update_ad_bid",
-			mcp.WithDescription("更新 v2 广告计划出价"),
-			mcp.WithString("ad_id",
-				mcp.Required(),
-				mcp.Description("广告计划ID"),
-			),
-			mcp.WithNumber("bid",
-				mcp.Required(),
-				mcp.Description("新出价金额（元）"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			adID, err := strconv.ParseInt(getString(args, "ad_id"), 10, 64)
-			if err != nil {
-				return mcp.NewToolResultError("ad_id 格式错误"), nil
-			}
-			bid, _ := args["bid"].(float64)
-			return toolResult(api.UpdateAdBid(c, accessToken, advID, adID, bid))
-		},
+		mcp.NewTool("update_ad_bid", ...),
 	)
+	*/
 
 	s.AddTool(
 		mcp.NewTool("update_ad_budget",
@@ -327,58 +303,12 @@ func main() {
 		},
 	)
 
-	s.AddTool(
-		mcp.NewTool("get_ad_reject_reason",
-			mcp.WithDescription("查询 v2 广告计划审核拒绝原因"),
-			mcp.WithString("ad_ids",
-				mcp.Required(),
-				mcp.Description("广告计划ID列表，逗号分隔，如 123,456"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			ids, err := parseIDs(getString(args, "ad_ids"))
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			return toolResult(api.GetAdRejectReason(c, accessToken, advID, ids))
-		},
-	)
-
-	s.AddTool(
-		mcp.NewTool("get_ad_cost_protect_status",
-			mcp.WithDescription("查询 v2 广告计划成本保护状态"),
-			mcp.WithString("ad_ids",
-				mcp.Required(),
-				mcp.Description("广告计划ID列表，逗号分隔，如 123,456"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			ids, err := parseIDs(getString(args, "ad_ids"))
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			return toolResult(api.GetAdCostProtectStatus(c, accessToken, advID, ids))
-		},
-	)
+	/* get_ad_reject_reason disabled */
+	/* get_ad_cost_protect_status disabled */
 
 	// ── v3 项目 Project ───────────────────────────────────────────────────────
 
+	/* create_project disabled
 	s.AddTool(
 		mcp.NewTool("create_project",
 			mcp.WithDescription("创建 v3 广告项目"),
@@ -427,6 +357,7 @@ func main() {
 			return toolResult(api.CreateProject(c, accessToken, advID, name, budget, budgetMode, landingType, getString(args, "start_time"), getString(args, "end_time")))
 		},
 	)
+	*/
 
 	s.AddTool(
 		mcp.NewTool("list_projects",
@@ -507,58 +438,12 @@ func main() {
 		},
 	)
 
-	s.AddTool(
-		mcp.NewTool("delete_projects",
-			mcp.WithDescription("删除 v3 项目"),
-			mcp.WithString("project_ids",
-				mcp.Required(),
-				mcp.Description("项目ID列表，逗号分隔，如 123,456"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			ids, err := parseIDs(getString(args, "project_ids"))
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			return toolResult(api.DeleteProjects(c, accessToken, advID, ids))
-		},
-	)
-
-	s.AddTool(
-		mcp.NewTool("get_project_cost_protect_status",
-			mcp.WithDescription("查询 v3 项目成本保护状态"),
-			mcp.WithString("project_ids",
-				mcp.Required(),
-				mcp.Description("项目ID列表，逗号分隔，如 123,456"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			ids, err := parseIDs(getString(args, "project_ids"))
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			return toolResult(api.GetProjectCostProtectStatus(c, accessToken, advID, ids))
-		},
-	)
+	/* delete_projects disabled */
+	/* get_project_cost_protect_status disabled */
 
 	// ── v3 广告单元 Promotion ─────────────────────────────────────────────────
 
+	/* create_promotion disabled
 	s.AddTool(
 		mcp.NewTool("create_promotion",
 			mcp.WithDescription("创建 v3 广告单元"),
@@ -620,6 +505,7 @@ func main() {
 			return toolResult(api.CreatePromotion(c, accessToken, advID, projectID, name, budget, budgetMode, bid, bidType, audienceMode, getString(args, "start_time"), getString(args, "end_time")))
 		},
 	)
+	*/
 
 	s.AddTool(
 		mcp.NewTool("list_promotions",
@@ -666,35 +552,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
-		mcp.NewTool("update_promotion_bid",
-			mcp.WithDescription("更新 v3 广告单元出价"),
-			mcp.WithString("promotion_id",
-				mcp.Required(),
-				mcp.Description("广告单元ID"),
-			),
-			mcp.WithNumber("bid",
-				mcp.Required(),
-				mcp.Description("新出价金额（元）"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			promotionID, err := strconv.ParseInt(getString(args, "promotion_id"), 10, 64)
-			if err != nil {
-				return mcp.NewToolResultError("promotion_id 格式错误"), nil
-			}
-			bid, _ := args["bid"].(float64)
-			return toolResult(api.UpdatePromotionBid(c, accessToken, advID, promotionID, bid))
-		},
-	)
+	/* update_promotion_bid disabled */
 
 	s.AddTool(
 		mcp.NewTool("update_promotion_budget",
@@ -726,80 +584,9 @@ func main() {
 		},
 	)
 
-	s.AddTool(
-		mcp.NewTool("delete_promotions",
-			mcp.WithDescription("删除 v3 广告单元"),
-			mcp.WithString("promotion_ids",
-				mcp.Required(),
-				mcp.Description("广告单元ID列表，逗号分隔，如 123,456"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			ids, err := parseIDs(getString(args, "promotion_ids"))
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			return toolResult(api.DeletePromotions(c, accessToken, advID, ids))
-		},
-	)
-
-	s.AddTool(
-		mcp.NewTool("get_promotion_reject_reason",
-			mcp.WithDescription("查询 v3 广告单元审核拒绝原因"),
-			mcp.WithString("promotion_ids",
-				mcp.Required(),
-				mcp.Description("广告单元ID列表，逗号分隔，如 123,456"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			ids, err := parseIDs(getString(args, "promotion_ids"))
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			return toolResult(api.GetPromotionRejectReason(c, accessToken, advID, ids))
-		},
-	)
-
-	s.AddTool(
-		mcp.NewTool("get_promotion_cost_protect_status",
-			mcp.WithDescription("查询 v3 广告单元成本保护状态"),
-			mcp.WithString("promotion_ids",
-				mcp.Required(),
-				mcp.Description("广告单元ID列表，逗号分隔，如 123,456"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			ids, err := parseIDs(getString(args, "promotion_ids"))
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			return toolResult(api.GetPromotionCostProtectStatus(c, accessToken, advID, ids))
-		},
-	)
+	/* delete_promotions disabled */
+	/* get_promotion_reject_reason disabled */
+	/* get_promotion_cost_protect_status disabled */
 
 	// ── 创意 Creative ─────────────────────────────────────────────────────────
 
@@ -844,30 +631,7 @@ func main() {
 		},
 	)
 
-	s.AddTool(
-		mcp.NewTool("get_creative_reject_reason",
-			mcp.WithDescription("查询 v2 创意审核拒绝原因"),
-			mcp.WithString("creative_ids",
-				mcp.Required(),
-				mcp.Description("创意ID列表，逗号分隔，如 123,456"),
-			),
-			mcp.WithString("advertiser_id",
-				mcp.Description("广告主ID，不填则使用 .env 中的 ADVERTISER_ID"),
-			),
-		),
-		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
-			args := getArgs(req.Params.Arguments)
-			advID, err := resolveAdvID(args)
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			ids, err := parseIDs(getString(args, "creative_ids"))
-			if err != nil {
-				return mcp.NewToolResultError(err.Error()), nil
-			}
-			return toolResult(api.GetCreativeRejectReason(c, accessToken, advID, ids))
-		},
-	)
+	/* get_creative_reject_reason disabled */
 
 	// ── 启动 stdio server ──────────────────────────────────────────────────────
 	if err := server.ServeStdio(s); err != nil {
